@@ -1038,7 +1038,7 @@ def blender_3DC_blender(texturelist):
                         objekti.select_set(False)
 
                     elif objekti.coat3D.applink_firsttime == True:
-                        #objekti.scale = (objekti.scale[0]/objekti.coat3D.applink_scale[0],objekti.scale[1]/objekti.coat3D.applink_scale[1],objekti.scale[2]/objekti.coat3D.applink_scale[2])
+                        objekti.scale = (objekti.scale[0]/objekti.coat3D.applink_scale[0],objekti.scale[1]/objekti.coat3D.applink_scale[1],objekti.scale[2]/objekti.coat3D.applink_scale[2])
                         #bpy.ops.object.transforms_to_deltas(mode='SCALE')
                         if(objekti.coat3D.applink_onlyone == False):
                             objekti.rotation_euler = (0,0,0)
@@ -1185,7 +1185,7 @@ def blender_3DC(texturelist, new_applink_address):
     old_materials = bpy.data.materials.keys()
     old_objects = bpy.data.objects.keys()
   
-    bpy.ops.import_scene.fbx(filepath=new_applink_address, global_scale = 0.01, axis_forward='-Z', axis_up='Y')
+    bpy.ops.import_scene.fbx(filepath=new_applink_address, global_scale = 1, axis_forward='-Z', axis_up='Y')
 
     new_materials = bpy.data.materials.keys()
     new_objects = bpy.data.objects.keys()
