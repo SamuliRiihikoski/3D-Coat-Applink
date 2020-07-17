@@ -520,15 +520,15 @@ def CreateTextureLine(type, act_material, main_mat, texcoat, coat3D, notegroup, 
         if(texcoat[type['name']][0] == image.filepath):
             load_image = False
             node.image = image
-            if(udim_textures):
-                node.image.source = 'TILED'
+         
             break
 
     if (load_image):
         print('load_image', texcoat[type['name']][0])
         
         node.image = bpy.data.images.load(texcoat[type['name']][0])
-     
+    if(udim_textures):
+        node.image.source = 'TILED'
 
     
     if node.image and type['colorspace'] == 'noncolor':

@@ -104,19 +104,44 @@ def set_exchange_folder():
 
     if(os.path.isdir(exchange)):
         bpy.coat3D['status'] = 1
+
         if(platform == 'win32'):
+
             exchange_path = os.path.expanduser("~") + os.sep + 'Documents' + os.sep + '3DC2Blender' + os.sep + 'Exchange_folder.txt'
             applink_folder = os.path.expanduser("~") + os.sep + 'Documents' + os.sep + '3DC2Blender'
             if(not(os.path.isdir(applink_folder))):
                 os.makedirs(applink_folder)
+
         else:
+
             exchange_path = os.path.expanduser("~") + os.sep + 'Documents' + os.sep + '3DC2Blender' + os.sep + 'Exchange_folder.txt'
             applink_folder = os.path.expanduser("~") + os.sep + 'Documents' + os.sep + '3DC2Blender'
             if(not(os.path.isdir(applink_folder))):
                 os.makedirs(applink_folder)
-        file = open(exchange_path, "w")
-        file.write("%s"%(coat3D.exchangedir))
-        file.close()
+
+        if(os.path.isfile(exchange_path) == False):
+
+            file = open(exchange_path, "w")
+            file.write("%s"%(exchange_path))
+            file.close()
+
+        else:
+
+            exchangeline = open(exchange_path)
+            for line in exchangeline:
+                source = line
+                break
+            exchangeline.close()
+
+            if(source != coat3D.exchangedir and coat3D.exchangedir != '' and coat3D.exchangedir.rfind('Exchange') >= 0):
+
+                file = open(exchange_path, "w")
+                file.write("%s"%(coat3D.exchangedir))
+                file.close()
+                exchange = coat3D.exchangedir
+            
+            else:
+                exchange = source
 
     else:
         if(platform == 'win32'):
@@ -902,6 +927,10 @@ def new_ref_function(new_applink_address, nimi):
     refmesh.coat3D.applink_name = ''
     refmesh.coat3D.applink_address = ''
     refmesh.coat3D.type = ''
+    copymesh.scale = (1,1,1)
+    copymesh.coat3D.applink_scale = (1,1,1)
+    copymesh.location = (0,0,0)
+    copymesh.rotation_euler = (0,0,0)
 
 
 def blender_3DC_blender(texturelist):
@@ -1241,6 +1270,7 @@ def blender_3DC(texturelist, new_applink_address):
 
             if(facture_object):
                 texVR.matlab(new_obj, mat_list, texturelist, is_new)
+                new_obj.scale = (0.01, 0.01, 0.01)
             else:
                 tex.matlab(new_obj, mat_list, texturelist, is_new)
 
