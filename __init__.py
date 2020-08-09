@@ -39,6 +39,7 @@ from io_coat3D import tex
 from io_coat3D import texVR
 
 import os
+import platform
 import ntpath
 import re
 import shutil
@@ -93,7 +94,7 @@ def set_exchange_folder():
     platform = os.sys.platform
     coat3D = bpy.context.scene.coat3D
 
-    if(platform == 'win32'):
+    if(platform == 'win32' or platform == 'darwin'):
         exchange = os.path.expanduser("~") + os.sep + 'Documents' + os.sep + 'Applinks' + os.sep + '3D-Coat' + os.sep +'Exchange'
     else:
         exchange = os.path.expanduser("~") + os.sep + '3D-CoatV4' + os.sep + 'Exchange'
@@ -105,7 +106,7 @@ def set_exchange_folder():
     if(os.path.isdir(exchange)):
         bpy.coat3D['status'] = 1
 
-        if(platform == 'win32'):
+        if(platform == 'win32' or platform == 'darwin'):
 
             exchange_path = os.path.expanduser("~") + os.sep + 'Documents' + os.sep + '3DC2Blender' + os.sep + 'Exchange_folder.txt'
             applink_folder = os.path.expanduser("~") + os.sep + 'Documents' + os.sep + '3DC2Blender'
@@ -144,7 +145,7 @@ def set_exchange_folder():
                 exchange = source
 
     else:
-        if(platform == 'win32'):
+        if(platform == 'win32' or platform == 'darwin'):
             exchange_path = os.path.expanduser("~") + os.sep + 'Documents' + os.sep + '3DC2Blender' + os.sep + 'Exchange_folder.txt'
         else:
             exchange_path = os.path.expanduser("~") + os.sep + '3DC2Blender' + os.sep + 'Exchange_folder.txt'
@@ -193,7 +194,7 @@ def set_working_folders():
     platform = os.sys.platform
     coat3D = bpy.context.scene.coat3D
 
-    if(platform == 'win32'):
+    if(platform == 'win32' or platform == 'darwin'):
         if (coat3D.defaultfolder != '' and os.path.isdir(coat3D.defaultfolder)):
             return coat3D.defaultfolder
         else:
@@ -379,7 +380,7 @@ class SCENE_OT_opencoat(bpy.types.Operator):
 
         coat3D = bpy.context.selected_objects[0].coat3D.applink_3b_path
         platform = os.sys.platform
-        if (platform == 'win32'):
+        if (platform == 'win32' or platform == 'darwin'):
             importfile = bpy.context.scene.coat3D.exchangedir
             importfile += ('%simport.txt' % (os.sep))
             file = open(importfile, "w")
