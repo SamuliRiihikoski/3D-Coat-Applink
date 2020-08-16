@@ -654,13 +654,14 @@ class SCENE_OT_export(bpy.types.Operator):
         matindex = 0
 
         for objekti in bpy.context.selected_objects:
-            objekti.name = '__' + objekti.name
-            if(objekti.material_slots.keys() == []):
-                newmat = bpy.data.materials.new('Material')
-                newmat.use_nodes = True
-                objekti.data.materials.append(newmat)
-                matindex += 1
-            objekti.coat3D.applink_name = objekti.name
+            if objekti.type == 'MESH':
+                objekti.name = '__' + objekti.name
+                if(objekti.material_slots.keys() == []):
+                    newmat = bpy.data.materials.new('Material')
+                    newmat.use_nodes = True
+                    objekti.data.materials.append(newmat)
+                    matindex += 1
+                objekti.coat3D.applink_name = objekti.name
         mod_mat_list = {}
 
 
@@ -673,106 +674,107 @@ class SCENE_OT_export(bpy.types.Operator):
 
         temp_string = ''
         for objekti in bpy.context.selected_objects:
-            mod_mat_list[objekti.name] = []
-            objekti.coat3D.applink_scale = objekti.scale
-            objekti.coat3D.retopo = False
+            if objekti.type == 'MESH':
+                mod_mat_list[objekti.name] = []
+                objekti.coat3D.applink_scale = objekti.scale
+                objekti.coat3D.retopo = False
 
-            ''' Checks what materials are linked into UV '''
+                ''' Checks what materials are linked into UV '''
 
-            if(coat3D.type == 'ppp'):
-                final_material_indexs = []
-                uvtiles_index = []
-                for poly in objekti.data.polygons:
-                    if(poly.material_index not in final_material_indexs):
-                        final_material_indexs.append(poly.material_index)
-                        loop_index = poly.loop_indices[0]
-                        uvtiles_index.append([poly.material_index,objekti.data.uv_layers.active.data[loop_index].uv[0]])
-                    if(len(final_material_indexs) == len(objekti.material_slots)):
-                        break
+                if(coat3D.type == 'ppp'):
+                    final_material_indexs = []
+                    uvtiles_index = []
+                    for poly in objekti.data.polygons:
+                        if(poly.material_index not in final_material_indexs):
+                            final_material_indexs.append(poly.material_index)
+                            loop_index = poly.loop_indices[0]
+                            uvtiles_index.append([poly.material_index,objekti.data.uv_layers.active.data[loop_index].uv[0]])
+                        if(len(final_material_indexs) == len(objekti.material_slots)):
+                            break
 
-                material_index = 0
-                if (len(final_material_indexs) != len(objekti.material_slots)):
-                    for material in objekti.material_slots:
-                        if material_index not in final_material_indexs:
-                            temp_mat = material.material
-                            material.material = objekti.material_slots[0].material
-                            mod_mat_list[objekti.name].append([material_index, temp_mat])
-                        material_index = material_index + 1
-
-                bake_list = []
-                if(coat3D.bake_diffuse):
-                    bake_list.append(['DIFFUSE', '$LOADTEX'])
-                if (coat3D.bake_ao):
-                    bake_list.append(['AO', '$ExternalAO'])
-                if (coat3D.bake_normal):
-                    bake_list.append(['NORMAL', '$LOADLOPOLYTANG'])
-                if (coat3D.bake_roughness):
-                    bake_list.append(['ROUGHNESS', '$LOADROUGHNESS'])
-
-                if(coat3D.bake_resolution == 'res_64'):
-                    res_size = 64
-                elif (coat3D.bake_resolution == 'res_128'):
-                    res_size = 128
-                elif (coat3D.bake_resolution == 'res_256'):
-                    res_size = 256
-                elif (coat3D.bake_resolution == 'res_512'):
-                    res_size = 512
-                elif (coat3D.bake_resolution == 'res_1024'):
-                    res_size = 1024
-                elif (coat3D.bake_resolution == 'res_2048'):
-                    res_size = 2048
-                elif (coat3D.bake_resolution == 'res_4096'):
-                    res_size = 4096
-                elif (coat3D.bake_resolution == 'res_8192'):
-                    res_size = 8192
-
-                if(len(bake_list) > 0):
-                    index_bake_tex = 0
-                    while(index_bake_tex < len(bake_list)):
-                        bake_index = 0
-                        for bake_mat_index in final_material_indexs:
-                            bake_node = objekti.material_slots[bake_mat_index].material.node_tree.nodes.new('ShaderNodeTexImage')
-                            bake_node.name = 'ApplinkBake' + str(bake_index)
-                            bpy.ops.image.new(name=bake_node.name, width=res_size, height=res_size)
-                            bake_node.image = bpy.data.images[bake_node.name]
-                            objekti.material_slots[bake_mat_index].material.node_tree.nodes.active = bake_node
-
-                            bake_index += 1
-                        if(bpy.context.scene.render.engine != 'CYCLES'):
-                            bpy.context.scene.render.engine = 'CYCLES'
-                        bpy.context.scene.render.bake.use_pass_direct = False
-                        bpy.context.scene.render.bake.use_pass_indirect = False
-                        bpy.context.scene.render.bake.use_pass_color = True
-
-                        bpy.ops.object.bake(type=bake_list[index_bake_tex][0], margin=1, width=res_size, height=res_size)
-
-                        bake_index = 0
-                        for bake_mat_index in final_material_indexs:
-                            bake_image = 'ApplinkBake' + str(bake_index)
-                            bpy.data.images[bake_image].filepath_raw = bake_location + os.sep + objekti.name + '_' + bake_image + '_' + bake_list[index_bake_tex][0] + ".png"
-                            image_bake_name =  bpy.data.images[bake_image].filepath_raw
-                            tie = image_bake_name.split(os.sep)
-                            toi = ''
-                            for sana in tie:
-                                toi += sana
-                                toi += "/"
-                            final_bake_name = toi[:-1]
-                            bpy.data.images[bake_image].save()
-                            temp_string += '''\n[script ImportTexture("''' + bake_list[index_bake_tex][1] + '''","''' + objekti.material_slots[bake_mat_index].material.name + '''","''' +  final_bake_name + '''");]'''
-
-                            bake_index += 1
-
+                    material_index = 0
+                    if (len(final_material_indexs) != len(objekti.material_slots)):
                         for material in objekti.material_slots:
-                            if material.material.use_nodes == True:
-                                for node in material.material.node_tree.nodes:
-                                    if (node.name.startswith('ApplinkBake') == True):
-                                        material.material.node_tree.nodes.remove(node)
+                            if material_index not in final_material_indexs:
+                                temp_mat = material.material
+                                material.material = objekti.material_slots[0].material
+                                mod_mat_list[objekti.name].append([material_index, temp_mat])
+                            material_index = material_index + 1
 
-                        for image in bpy.data.images:
-                            if (image.name.startswith('ApplinkBake') == True):
-                                bpy.data.images.remove(image)
+                    bake_list = []
+                    if(coat3D.bake_diffuse):
+                        bake_list.append(['DIFFUSE', '$LOADTEX'])
+                    if (coat3D.bake_ao):
+                        bake_list.append(['AO', '$ExternalAO'])
+                    if (coat3D.bake_normal):
+                        bake_list.append(['NORMAL', '$LOADLOPOLYTANG'])
+                    if (coat3D.bake_roughness):
+                        bake_list.append(['ROUGHNESS', '$LOADROUGHNESS'])
 
-                        index_bake_tex += 1
+                    if(coat3D.bake_resolution == 'res_64'):
+                        res_size = 64
+                    elif (coat3D.bake_resolution == 'res_128'):
+                        res_size = 128
+                    elif (coat3D.bake_resolution == 'res_256'):
+                        res_size = 256
+                    elif (coat3D.bake_resolution == 'res_512'):
+                        res_size = 512
+                    elif (coat3D.bake_resolution == 'res_1024'):
+                        res_size = 1024
+                    elif (coat3D.bake_resolution == 'res_2048'):
+                        res_size = 2048
+                    elif (coat3D.bake_resolution == 'res_4096'):
+                        res_size = 4096
+                    elif (coat3D.bake_resolution == 'res_8192'):
+                        res_size = 8192
+
+                    if(len(bake_list) > 0):
+                        index_bake_tex = 0
+                        while(index_bake_tex < len(bake_list)):
+                            bake_index = 0
+                            for bake_mat_index in final_material_indexs:
+                                bake_node = objekti.material_slots[bake_mat_index].material.node_tree.nodes.new('ShaderNodeTexImage')
+                                bake_node.name = 'ApplinkBake' + str(bake_index)
+                                bpy.ops.image.new(name=bake_node.name, width=res_size, height=res_size)
+                                bake_node.image = bpy.data.images[bake_node.name]
+                                objekti.material_slots[bake_mat_index].material.node_tree.nodes.active = bake_node
+
+                                bake_index += 1
+                            if(bpy.context.scene.render.engine != 'CYCLES'):
+                                bpy.context.scene.render.engine = 'CYCLES'
+                            bpy.context.scene.render.bake.use_pass_direct = False
+                            bpy.context.scene.render.bake.use_pass_indirect = False
+                            bpy.context.scene.render.bake.use_pass_color = True
+
+                            bpy.ops.object.bake(type=bake_list[index_bake_tex][0], margin=1, width=res_size, height=res_size)
+
+                            bake_index = 0
+                            for bake_mat_index in final_material_indexs:
+                                bake_image = 'ApplinkBake' + str(bake_index)
+                                bpy.data.images[bake_image].filepath_raw = bake_location + os.sep + objekti.name + '_' + bake_image + '_' + bake_list[index_bake_tex][0] + ".png"
+                                image_bake_name =  bpy.data.images[bake_image].filepath_raw
+                                tie = image_bake_name.split(os.sep)
+                                toi = ''
+                                for sana in tie:
+                                    toi += sana
+                                    toi += "/"
+                                final_bake_name = toi[:-1]
+                                bpy.data.images[bake_image].save()
+                                temp_string += '''\n[script ImportTexture("''' + bake_list[index_bake_tex][1] + '''","''' + objekti.material_slots[bake_mat_index].material.name + '''","''' +  final_bake_name + '''");]'''
+
+                                bake_index += 1
+
+                            for material in objekti.material_slots:
+                                if material.material.use_nodes == True:
+                                    for node in material.material.node_tree.nodes:
+                                        if (node.name.startswith('ApplinkBake') == True):
+                                            material.material.node_tree.nodes.remove(node)
+
+                            for image in bpy.data.images:
+                                if (image.name.startswith('ApplinkBake') == True):
+                                    bpy.data.images.remove(image)
+
+                            index_bake_tex += 1
 
         #bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
         if(len(bpy.context.selected_objects) > 1 and coat3D.type != 'vox'):
@@ -802,34 +804,35 @@ class SCENE_OT_export(bpy.types.Operator):
 
         file.close()
         for idx, objekti in enumerate(bpy.context.selected_objects):
-            objekti.name = objekti.name[2:]
-            if(len(bpy.context.selected_objects) == 1):
-                objekti.coat3D.applink_onlyone = True
-            objekti.coat3D.type = coat3D.type
-            objekti.coat3D.applink_mesh = True
-            objekti.coat3D.obj_mat = ''
-            objekti.coat3D.applink_index = ("3DC%.3d" % (object_index))
+            if objekti.type == 'MESH':
+                objekti.name = objekti.name[2:]
+                if(len(bpy.context.selected_objects) == 1):
+                    objekti.coat3D.applink_onlyone = True
+                objekti.coat3D.type = coat3D.type
+                objekti.coat3D.applink_mesh = True
+                objekti.coat3D.obj_mat = ''
+                objekti.coat3D.applink_index = ("3DC%.3d" % (object_index))
 
-            objekti.coat3D.applink_firsttime = True
-            if(coat3D.type != 'autopo'):
-                objekti.coat3D.applink_address = coa.applink_address
-                objekti.coat3D.objecttime = str(os.path.getmtime(objekti.coat3D.applink_address))
-            objekti.data.coat3D.name = '3DC'
+                objekti.coat3D.applink_firsttime = True
+                if(coat3D.type != 'autopo'):
+                    objekti.coat3D.applink_address = coa.applink_address
+                    objekti.coat3D.objecttime = str(os.path.getmtime(objekti.coat3D.applink_address))
+                objekti.data.coat3D.name = '3DC'
 
-            if(coat3D.type != 'vox'):
-                if(objekti.material_slots.keys() != []):
-                    for material in objekti.material_slots:
-                        if material.material.use_nodes == True:
-                            for node in material.material.node_tree.nodes:
-                                if(node.name.startswith('3DC_') == True):
-                                    material.material.node_tree.nodes.remove(node)
+                if(coat3D.type != 'vox'):
+                    if(objekti.material_slots.keys() != []):
+                        for material in objekti.material_slots:
+                            if material.material.use_nodes == True:
+                                for node in material.material.node_tree.nodes:
+                                    if(node.name.startswith('3DC_') == True):
+                                        material.material.node_tree.nodes.remove(node)
 
-    
-            for ind, mat_list in enumerate(mod_mat_list):
-                if(mat_list == '__' + objekti.name):
-                    for ind, mat in enumerate(mod_mat_list[mat_list]):
-                        objekti.material_slots[mod_mat_list[mat_list][ind][0]].material = mod_mat_list[mat_list][ind][1]
         
+                for ind, mat_list in enumerate(mod_mat_list):
+                    if(mat_list == '__' + objekti.name):
+                        for ind, mat in enumerate(mod_mat_list[mat_list]):
+                            objekti.material_slots[mod_mat_list[mat_list][ind][0]].material = mod_mat_list[mat_list][ind][1]
+            
         bpy.context.scene.render.engine = active_render
         return {'FINISHED'}
 
