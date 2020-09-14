@@ -147,7 +147,7 @@ def testi(objekti, texture_info, index_mat_name, uv_MODE_mat, mat_index):
     elif uv_MODE_mat == 'MAT':
         return (texture_info == index_mat_name)
 
-def readtexturefolder(objekti, mat_list, texturelist, is_new, udim_textures): #read textures from texture file
+def readtexturefolder(objekti, mat_list, texturelist, is_new, udim_textures, udim_len): #read textures from texture file
 
     # Let's check are we UVSet or MATERIAL modee
     create_nodes = False
@@ -297,9 +297,9 @@ def readtexturefolder(objekti, mat_list, texturelist, is_new, udim_textures): #r
                     objekti.coat3D.applink_3b_path = line
                 export_file.close()
                 coat3D.remove_path = True
-            createnodes(index_mat, texcoat, create_group_node, objekti, ind, is_new, udim_textures)
+            createnodes(index_mat, texcoat, create_group_node, objekti, ind, is_new, udim_textures, udim_len)
 
-def createnodes(active_mat,texcoat, create_group_node, objekti, ind, is_new, udim_textures): # Creates new nodes and link textures into them
+def createnodes(active_mat,texcoat, create_group_node, objekti, ind, is_new, udim_textures, udim_len): # Creates new nodes and link textures into them
     bring_color = True # Meaning of these is to check if we can only update textures or do we need to create new nodes
     bring_metalness = True
     bring_roughness = True
@@ -444,33 +444,33 @@ def createnodes(active_mat,texcoat, create_group_node, objekti, ind, is_new, udi
         if(out_mat.inputs['Surface'].is_linked == True):
             if(bring_color == True and texcoat['color'] != []):
                 CreateTextureLine(data['color'], act_material, main_mat, texcoat, coat3D, notegroup,
-                                  main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures)
+                                  main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures, udim_len)
 
             if(bring_metalness == True and texcoat['metalness'] != []):
                 CreateTextureLine(data['metalness'], act_material, main_mat, texcoat, coat3D, notegroup,
-                                  main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures)
+                                  main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures, udim_len)
 
             if(bring_roughness == True and texcoat['rough'] != []):
                 CreateTextureLine(data['rough'], act_material, main_mat, texcoat, coat3D, notegroup,
-                                  main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures)
+                                  main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures, udim_len)
 
             if(bring_normal == True and texcoat['nmap'] != []):
                 CreateTextureLine(data['nmap'], act_material, main_mat, texcoat, coat3D, notegroup,
-                                  main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures)
+                                  main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures, udim_len)
 
             if (bring_emissive == True and texcoat['emissive'] != []):
                 CreateTextureLine(data['emissive'], act_material, main_mat, texcoat, coat3D, notegroup,
-                                  main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures)
+                                  main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures, udim_len)
 
             if (bring_displacement == True and texcoat['displacement'] != []):
                 CreateTextureLine(data['displacement'], act_material, main_mat, texcoat, coat3D, notegroup,
-                                  main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures)
+                                  main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures, udim_len)
             if (bring_alpha == True and texcoat['alpha'] != []):
                 CreateTextureLine(data['alpha'], act_material, main_mat, texcoat, coat3D, notegroup,
-                                  main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures)
+                                  main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures, udim_len)
 
 
-def CreateTextureLine(type, act_material, main_mat, texcoat, coat3D, notegroup, main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures):
+def CreateTextureLine(type, act_material, main_mat, texcoat, coat3D, notegroup, main_material, applink_tree, out_mat, coatMat, objekti, ind, is_new, udim_textures, udim_len):
 
     node = act_material.nodes.new('ShaderNodeTexImage')
     uv_node = act_material.nodes.new('ShaderNodeUVMap')
@@ -518,17 +518,32 @@ def CreateTextureLine(type, act_material, main_mat, texcoat, coat3D, notegroup, 
     for image in bpy.data.images:
         
         if(texcoat[type['name']][0] == image.filepath):
+           
             load_image = False
             node.image = image
+            
+            if(udim_textures):
+                node.image.source = 'TILED'
+                for udim_index in udim_len:
+                    if (udim_index != 1001):
+                        image.tiles.new(udim_index)
+
+            node.image.reload()
          
             break
 
     if (load_image):
-        print('load_image', texcoat[type['name']][0])
         
         node.image = bpy.data.images.load(texcoat[type['name']][0])
-    if(udim_textures):
-        node.image.source = 'TILED'
+
+        if(udim_textures):
+            node.image.source = 'TILED'
+
+        for udim_index in udim_len:
+            if (udim_index != 1001):
+                image.tiles.new(udim_index)
+
+  
 
     
     if node.image and type['colorspace'] == 'noncolor':
@@ -690,16 +705,27 @@ def matlab(objekti,mat_list,texturelist,is_new):
     if(texturelist != []):
     
         udim_textures = False
+        udim_count = 0
+        udim_indexs = []
+
         if texturelist[0][0].startswith('100') and  len(texturelist[0][0]) == 4:
             udim_textures = True
+        
+        udim_target = ''
+        udim_target  = texturelist[0][2]
+        for texture in texturelist:
+            if texture[2] == udim_target:
+                udim_indexs.append(int(texture[0]))
+
+        udim_indexs.sort()
 
         if(udim_textures == False):
-            readtexturefolder(objekti,mat_list,texturelist,is_new, udim_textures)
+            readtexturefolder(objekti,mat_list,texturelist,is_new, udim_textures, udim_indexs)
         else:
             path = texturelist[0][3]
             only_name = os.path.basename(path)
             if(only_name.startswith(objekti.coat3D.applink_index)):
-                readtexturefolder(objekti, mat_list, texturelist, is_new, udim_textures)
+                readtexturefolder(objekti, mat_list, texturelist, is_new, udim_textures, udim_indexs)
 
 
     return('FINISHED')

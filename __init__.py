@@ -303,6 +303,8 @@ def updatemesh(objekti, proxy, texturelist):
     if(proxy.name.startswith('RetopoGroup')):
         objekti.data = proxy.data
     else:
+        print('objekti: ' + str(len(objekti.data.vertices)))
+        print('proxy: ' + str(len(proxy.data.vertices)))
         for ind, v in enumerate(objekti.data.vertices):
             v.co = proxy.data.vertices[ind].co
 
