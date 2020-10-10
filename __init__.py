@@ -64,8 +64,40 @@ bpy.coat3D['active_coat'] = ''
 bpy.coat3D['status'] = 0
 
 initial_settings = True
-time_interval = 2.0
 global_exchange_folder = ''
+liveUpdate = True
+mTime = 0
+
+
+@persistent
+def every_3_seconds():
+
+    global global_exchange_folder
+    global initial_settings
+    global liveUpdate
+    global mTime
+    
+    if(initial_settings):
+        global_exchange_folder = set_exchange_folder()
+        initial_settings = False
+
+    Export_folder  = global_exchange_folder
+    Export_folder += ('%sexport.txt' % (os.sep))
+
+    if  (os.path.isfile(Export_folder) and mTime != os.path.getmtime(Export_folder)):
+
+        for objekti in bpy.data.objects:
+            if(objekti.coat3D.applink_mesh):
+                tex.updatetextures(objekti)
+
+        mTime = os.path.getmtime(Export_folder)
+    
+    return 3.0
+
+@persistent
+def load_handler(dummy):
+    bpy.app.timers.register(every_3_seconds)
+
 
 
 def removeFile(exportfile):
@@ -120,7 +152,7 @@ def set_exchange_folder():
             if(not(os.path.isdir(applink_folder))):
                 os.makedirs(applink_folder)
 
-        if(os.path.isfile(exchange_path) == False):
+        if(os.path.isfile(exchange_path) == False or os.path.getsize(exchange_path) == 0):
 
             file = open(exchange_path, "w")
             file.write("%s"%(exchange_path))
@@ -129,6 +161,7 @@ def set_exchange_folder():
         else:
 
             exchangeline = open(exchange_path)
+            
             for line in exchangeline:
                 source = line
                 break
@@ -303,8 +336,6 @@ def updatemesh(objekti, proxy, texturelist):
     if(proxy.name.startswith('RetopoGroup')):
         objekti.data = proxy.data
     else:
-        print('objekti: ' + str(len(objekti.data.vertices)))
-        print('proxy: ' + str(len(proxy.data.vertices)))
         for ind, v in enumerate(objekti.data.vertices):
             v.co = proxy.data.vertices[ind].co
 
@@ -341,8 +372,6 @@ class SCENE_OT_getback(bpy.types.Operator):
                 workflow1(ExportFolder)
                 removeFile(Export_folder)
                 removeFile(Blender_folder)    
-                
-            
             
             elif os.path.isfile(Blender_folder):
 
@@ -350,11 +379,8 @@ class SCENE_OT_getback(bpy.types.Operator):
                 DeleteExtra3DC() 
                 workflow2(BlenderFolder)
                 removeFile(Blender_folder)
-        
-    
 
         return {'FINISHED'}
-
 
 class SCENE_OT_folder(bpy.types.Operator):
     bl_idname = "update_exchange_folder.pilgway_3d_coat"
@@ -642,6 +668,9 @@ class SCENE_OT_export(bpy.types.Operator):
             checkname = folder_objects + os.sep
             checkname = ("%sretopo.fbx" % (checkname))
 
+        elif(coat3D.type == 'update'):
+            checkname = bpy.context.selected_objects[0].coat3D.applink_address
+
         else:
             while(looking == True):
                 checkname = folder_objects + os.sep + "3DC"
@@ -673,6 +702,8 @@ class SCENE_OT_export(bpy.types.Operator):
             os.makedirs(bake_location)
         else:
             os.makedirs(bake_location)
+
+        # BAKING #
 
         temp_string = ''
         for objekti in bpy.context.selected_objects:
@@ -777,6 +808,8 @@ class SCENE_OT_export(bpy.types.Operator):
                                     bpy.data.images.remove(image)
 
                             index_bake_tex += 1
+        
+        #BAKING ENDS
 
         #bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
         if(len(bpy.context.selected_objects) > 1 and coat3D.type != 'vox'):
@@ -939,7 +972,7 @@ def new_ref_function(new_applink_address, nimi):
     copymesh.rotation_euler = (0,0,0)
 
 
-def blender_3DC_blender(texturelist):
+def blender_3DC_blender(texturelist, file_applink_address):
     
     coat3D = bpy.context.scene.coat3D
 
@@ -952,18 +985,18 @@ def blender_3DC_blender(texturelist):
     import_type = []
 
     for objekti in bpy.data.objects:
-        if objekti.type == 'MESH':
+        if objekti.type == 'MESH' and objekti.coat3D.applink_address == file_applink_address:
             obj_coat = objekti.coat3D
-            if(obj_coat.applink_mesh == True):
-                object_list.append(objekti.name)
-                if(os.path.isfile(obj_coat.applink_address)):
-                    if (obj_coat.objecttime != str(os.path.getmtime(obj_coat.applink_address))):
-                        obj_coat.dime = objekti.dimensions
-                        obj_coat.import_mesh = True
-                        obj_coat.objecttime = str(os.path.getmtime(obj_coat.applink_address))
-                        if(obj_coat.applink_address not in import_list):
-                            import_list.append(obj_coat.applink_address)
-                            import_type.append(coat3D.type)
+            
+            object_list.append(objekti.name)
+            if(os.path.isfile(obj_coat.applink_address)):
+                if (obj_coat.objecttime != str(os.path.getmtime(obj_coat.applink_address))):
+                    obj_coat.dime = objekti.dimensions
+                    obj_coat.import_mesh = True
+                    obj_coat.objecttime = str(os.path.getmtime(obj_coat.applink_address))
+                    if(obj_coat.applink_address not in import_list):
+                        import_list.append(obj_coat.applink_address)
+                        import_type.append(coat3D.type)
 
     if(import_list or coat3D.importmesh):
         for idx, list in enumerate(import_list):
@@ -1133,7 +1166,8 @@ def blender_3DC_blender(texturelist):
                 objekti.select_set(False)
 
     if(coat3D.remove_path == True):
-        os.remove(path3b_n)
+        if(os.path.isfile(path3b_n)):
+            os.remove(path3b_n)
         coat3D.remove_path = False
 
     bpy.ops.object.select_all(action='DESELECT')
@@ -1355,7 +1389,7 @@ def workflow1(ExportFolder):
         new_ref_function(new_applink_address, nimi)
 
     else:
-        blender_3DC_blender(texturelist)
+        blender_3DC_blender(texturelist, new_applink_address)
 
 def workflow2(BlenderFolder):
 
@@ -1862,6 +1896,7 @@ class SceneCoat3D(PropertyGroup):
                ("prim", "Mesh As Voxel Primitive", ""),
                ("curv", "Mesh As a Curve Profile", ""),
                ("autopo", "Mesh For Auto-retopology", ""),
+               ("update", "Update mesh/uvs", ""),
                ),
         default="ppp"
     )
@@ -2065,6 +2100,7 @@ def register():
     bpy.types.Scene.coat3D = PointerProperty(type=SceneCoat3D)
     bpy.types.Mesh.coat3D = PointerProperty(type=MeshCoat3D)
     bpy.types.Material.coat3D = PointerProperty(type=MaterialCoat3D)  
+    bpy.app.handlers.load_post.append(load_handler)
 
     kc = bpy.context.window_manager.keyconfigs.addon
 
